@@ -3,13 +3,11 @@ package com.company;
 import com.company.threadpool.ThreadPool;
 
 import java.util.Random;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 public class Main {
 
     public static void main(String[] args) {
-        ThreadPool threadPool = new ThreadPool(10);
+        ThreadPool threadPool = new ThreadPool(5);
         Random random = new Random();
 
 

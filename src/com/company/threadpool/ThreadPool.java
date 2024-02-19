@@ -1,52 +1,46 @@
 package com.company.threadpool;
 
-import java.util.ArrayList;
 import java.util.LinkedList;
-import java.util.List;
 
 public class ThreadPool {
     private final Object monitor = new Object();
     private final int maxPoolSize;
-    private boolean shutdown = false;
     private final LinkedList<Runnable> queue = new LinkedList<>();
-    private final List<Thread> threads;
+    private boolean shutdown = false;
 
     public ThreadPool(int maxPoolSize) {
         this.maxPoolSize = maxPoolSize;
-        this.threads = new ArrayList<>(maxPoolSize);
         start();
     }
 
     private void start() {
-        shutdown = false;
-        Thread workThread = new Thread(() -> {
-
-            while (!shutdown || !queue.isEmpty()) {
-                synchronized (monitor) {
-                    if (queue.isEmpty()) {
-                        try {
-                            monitor.wait();
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
+        for (int i = 0; i < maxPoolSize; i++) {
+            Thread thread = new Thread(() -> {
+                Runnable target = null;
+                while (!shutdown || !queue.isEmpty()) {
+                    synchronized (monitor) {
+                        if (queue.isEmpty()) {
+                            try {
+                                monitor.wait();
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
                         }
+                        if (!queue.isEmpty())
+                            target = queue.remove(0);
                     }
+                    if (target != null)
+                        target.run();
                 }
-                Runnable r = queue.get(0);
-                for (int i = 0; i < maxPoolSize; i++) {
-                    if (threads.size() <= i)
-                        threads.add(new Thread(r));
-                    else if (!threads.get(i).isAlive())
-                        threads.set(i, new Thread(r));
-                    else
-                        continue;
-                    threads.get(i).start();
-                    queue.remove(0);
-                    break;
+                // При вызове shutdown(), если сразу после входа в цикл соседний поток достанет последнюю задачу из очереди -
+                // текущий поток заснет т.к. условие входа в цикл находится вне блока synchronized.
+                // Поэтому их надо разбудить перед выходом
+                synchronized (monitor) {
+                    monitor.notifyAll();
                 }
-            }
+            });
+            thread.start();
         }
-        );
-        workThread.start();
     }
 
     public void shutdown() {
